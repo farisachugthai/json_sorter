@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """Main module."""
 import argparse
-import csv
 import json
 import logging
 import os
@@ -18,12 +17,6 @@ LOGGER = logging.Logger(name=__name__)
 
 def _parse_arguments():
     """Parse arguments given by the user.
-
-    This implementation still, somehow isn't done. An option for *inplace*
-    modifications needs to be added.
-
-    Unfortunately this will be mutually exclusive to the output file option.
-    So we'll need to work on learning argparse.mutually_exclusive_groups.
 
     Returns
     -------
@@ -44,10 +37,25 @@ def _parse_arguments():
     parser.add_argument(
         "-o",
         "--output",
-        default=sys.stdout,
-        type=argparse.FileType(mode="w"),
+        # default=sys.stdout,
+        # type=argparse.FileType(mode="w"),
         help="File to write to. Defaults to stdout.",
     )
+
+    filetypes = parser.add_mutually_exclusive_group()
+    filetypes.add_argument(
+            "-c",
+            "--csv",
+            action='store_true',
+            help="Convert the sorted output to csv.",
+        )
+
+    filetypes.add_argument(
+            "-y",
+            "--yaml",
+            action='store_true',
+            help="Convert the sorted output to yaml.",
+            )
 
     # Should probably implement this and CSV as subcommands
     # parser.add_argument(
@@ -68,13 +76,21 @@ def _parse_arguments():
         help="Turn logging on and print to console.",
     )
 
-    parser.add_argument(
+    log_levels = parser.add_mutually_exclusive_group()
+    log_levels.add_argument(
         "-ll",
         "--log_level",
         dest="log_level",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Set the logging level",
     )
+
+    log_levels.add_argument(
+            "-v",
+            "--verbose",
+            action="store_true",
+            help="Shorthand for setting default log level to DEBUG."
+        )
 
     parser.add_argument(
         "-V", "--version", action="version", version="%(prog)s" + __version__
@@ -133,12 +149,40 @@ def csv_to_json(file_obj):
         JSON encoded object
 
     """
+    import csv
     if not Path(f).is_file():
         raise FileNotFoundError
 
     with open(file_obj) as f:
         csv_file = list(csv.reader(f))
         return json.dumps(csv_file)
+
+
+def write_csv(data, filename):
+    import csv
+    data = json.loads(data)
+    with open(filename, "wt") as f:
+        writer = csv.DictWriter(f, data[0].keys())
+        writer.writeheader()
+        for row in data:
+            writer.writerow(row)
+
+
+def convert_to_csv(json_string):
+    import csv
+    import tempfile
+    # csv module expects file objects so write it to a tempfile and work off of that
+    tmp = tempfile.NamedTemporaryFile(mode="wt")
+    tmp.write(json_string)
+    csv_list = []
+    with open(tmp.name) as f:
+        reader = csv.reader(f)
+        try:
+            for row in reader:
+                csv_list.append(row)
+        except csv.Error as e:
+            print('line{}: {}'.format(reader.line_num, e))
+    return csv_list
 
 
 def sort_json(file_obj):
@@ -167,7 +211,7 @@ def sort_json(file_obj):
     return json_str
 
 
-def text_writer(plaintext, output_file=sys.stdout):
+def text_writer(plaintext, output_file=None, csv=False, yaml=False):
     """Write the previously inputted text to a file.
 
     This function could easily be utilized over the whole package though.
@@ -185,7 +229,18 @@ def text_writer(plaintext, output_file=sys.stdout):
         It will only write to the file if the filename currently doesn't exist.
 
     """
-    output_file.write(plaintext)
+    # UGHH this is so fucked up because at every level of this program i have to check sys.stdout or path i need to open fuck
+    if csv is True:
+        if output_file is None:
+            output_file = sys.stdout
+        write_csv(plaintext, output_file)
+
+    if output_file is None:
+        output_file = sys.stdout
+        output_file.write(plaintext)
+    else:
+        with open(output_file, "wt") as f:
+            f.write(plaintext)
     logging.info("File written is: " + str(output_file))
 
 
@@ -200,10 +255,15 @@ def main():
     #     plaintext = sort_json(fobj)
     # else:
     #     plaintext = convert_to_yaml(yaml)
-    plaintext = sort_json(args.input)
+    if args.csv is True:
+        plaintext = convert_to_csv(sort_json(args.input))
+    if args.yaml is True:
+        plaintext = convert_to_yaml(sort_json(args.input))
+    else:
+        plaintext = sort_json(args.input)
 
     logging.debug("Plaintext is: " + str(plaintext))
-    text_writer(plaintext, args.output)
+    text_writer(plaintext, args.output, args.csv, args.yaml)
 
 
 if __name__ == "__main__":
