@@ -1,11 +1,12 @@
 Welcome to json_sorter's documentation!
 ========================================
 
+.. include:: ../README.rst
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-   readme
    installation
    usage
    contributing
