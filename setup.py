@@ -37,7 +37,7 @@ setup(
     description="Sort a JSON file by key",
     entry_points={
         'console_scripts': [
-            'json_sorter=json_sorter.cli:main',
+            'json_sorter=json_sorter.core:main',
         ],
     },
     install_requires=requirements,

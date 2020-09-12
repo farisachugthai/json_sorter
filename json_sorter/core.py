@@ -30,7 +30,7 @@ def _parse_arguments():
     """
     parser = argparse.ArgumentParser(
         prog="JSON sorter",
-        description="Take a :mod:`json` file, sort the keys and insert 4 spaces for indents.",
+        description="Take a json file, sort the keys and insert 4 spaces for indents.",
     )
 
     parser.add_argument(
@@ -48,14 +48,14 @@ def _parse_arguments():
         help="File to write to. Defaults to stdout.",
     )
 
-    parser.add_argument(
-        "-y",
-        "--yaml",
-        dest="yaml",
-        default=sys.stdout,
-        type=argparse.FileType(mode="w"),
-        help="YAML file to write to. Defaults to stdout.",
-    )
+    # Should probably implement this and CSV as subcommands
+    # parser.add_argument(
+    #     "--yaml-file",
+    #     dest="yaml",
+    #     default=sys.stdout,
+    #     type=argparse.FileType(mode="w"),
+    #     help="YAML file to write to. Defaults to stdout.",
+    # )
 
     # is there a way to have info printed with this from argparse?
     parser.add_argument(
@@ -89,7 +89,7 @@ def _parse_arguments():
 
 
 def convert_to_yaml(file_obj):
-    """Convert a :mod:`json` to YAML.
+    """Convert a :mod:`json` file to a YAML string.
 
     Parameters
     ----------
@@ -157,28 +157,24 @@ def main():
     """Handles user args, sets up logging and calls other functions."""
     args = _parse_arguments()
 
-    try:
+    if args.log_level is None:
+        # no LOG_LEVEL specified but -l was specified
+        if hasattr(args, 'log'):
+            LOG_LEVEL = "WARNING"
+    else:
         LOG_LEVEL = args.log_level
-    except AttributeError:
-        pass
-
-    if LOG_LEVEL is None:
-        LOG_LEVEL = "WARNING"
-
     LOGGER.setLevel(level=LOG_LEVEL)
 
     fobj = args.input
     o_file = args.output
 
-    if os.path.isfile(o_file):
-        raise FileExistsError
-    else:
-        try:
-            yaml = args.yaml
-        except AttributeError:
-            plaintext = sort_json(fobj)
-        else:
-            plaintext = convert_to_yaml(yaml)
+    # try:
+    #     yaml = args.yaml
+    # except AttributeError:
+    #     plaintext = sort_json(fobj)
+    # else:
+    #     plaintext = convert_to_yaml(yaml)
+    plaintext = sort_json(fobj)
 
     logging.debug("Plaintext is: " + str(plaintext))
     text_writer(plaintext, o_file)
