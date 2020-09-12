@@ -2,10 +2,13 @@
 # -*- coding: utf-8 -*-
 """Main module."""
 import argparse
+import csv
 import json
 import logging
 import os
 import sys
+from pathlib import Path
+
 import yaml
 
 from pyutil.__about__ import __version__
@@ -35,9 +38,7 @@ def _parse_arguments():
 
     parser.add_argument(
         "input",
-        type=argparse.FileType("r"),
-        default=sys.stdin,
-        help="File to parse. Defaults to stdin.",
+        help="JSON file to parse.",
     )
 
     parser.add_argument(
@@ -85,6 +86,16 @@ def _parse_arguments():
 
     args = parser.parse_args()
 
+    # Handling the arguments prematurely. If this begins running away
+    # in complexity do this and maybe even parse_args in a separate function
+    if args.log_level is None:
+        # no LOG_LEVEL specified but -l was specified
+        if hasattr(args, 'log'):
+            LOG_LEVEL = "WARNING"
+    else:
+        LOG_LEVEL = args.log_level
+    LOGGER.setLevel(level=LOG_LEVEL)
+
     return args
 
 
@@ -106,6 +117,28 @@ def convert_to_yaml(file_obj):
     # output yaml
     yaml_text = yaml.dump(yaml.load(converted_json_data), default_flow_style=False)
     return yaml_text
+
+
+def csv_to_json(file_obj):
+    """Convert a csv file to json.
+
+    Parameters
+    ----------
+    file_obj : Path
+        A path to a csv file
+
+    Returns
+    -------
+    str
+        JSON encoded object
+
+    """
+    if not Path(f).is_file():
+        raise FileNotFoundError
+
+    with open(file_obj) as f:
+        csv_file = list(csv.reader(f))
+        return json.dumps(csv_file)
 
 
 def sort_json(file_obj):
@@ -141,43 +174,36 @@ def text_writer(plaintext, output_file=sys.stdout):
 
     Parameters
     ----------
-    plaintext : str
-        The file to read in
-    output_file : str
+    plaintext : io.TextIOWrapper
+        The file to read in as represented by an already open file handle.
+        Needed to be done this way in case we write to sys.stdout and running
+        ``open(path)`` raises an error.
+        Alternatively handle the 2 situations where we get an io object and a
+        Path object together in this function.
+    output_file : os.PathLike
         Text file to write formatted :mod:`json` to.
         It will only write to the file if the filename currently doesn't exist.
 
     """
-    with open(output_file, "xt") as f:
-        f.write(plaintext)
-        logging.info("File written is: " + str(output_file))
+    output_file.write(plaintext)
+    logging.info("File written is: " + str(output_file))
 
 
 def main():
     """Handles user args, sets up logging and calls other functions."""
     args = _parse_arguments()
 
-    if args.log_level is None:
-        # no LOG_LEVEL specified but -l was specified
-        if hasattr(args, 'log'):
-            LOG_LEVEL = "WARNING"
-    else:
-        LOG_LEVEL = args.log_level
-    LOGGER.setLevel(level=LOG_LEVEL)
-
-    fobj = args.input
-    o_file = args.output
-
+    # TODO:
     # try:
     #     yaml = args.yaml
     # except AttributeError:
     #     plaintext = sort_json(fobj)
     # else:
     #     plaintext = convert_to_yaml(yaml)
-    plaintext = sort_json(fobj)
+    plaintext = sort_json(args.input)
 
     logging.debug("Plaintext is: " + str(plaintext))
-    text_writer(plaintext, o_file)
+    text_writer(plaintext, args.output)
 
 
 if __name__ == "__main__":
