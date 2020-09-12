@@ -4,7 +4,6 @@
 import argparse
 import json
 import logging
-import operator
 import os
 import sys
 import yaml
@@ -129,7 +128,7 @@ def sort_json(file_obj):
     with open(file_obj) as f:
         settings = json.loads(f.read())
 
-    json_str = sorted(json.dumps(settings, indent=4), key=operator.getitem())
+    json_str = json.dumps(settings, indent=4, sort_keys=True)
 
     logging.debug("Formatted json: %s\n" % str(json_str))
     return json_str

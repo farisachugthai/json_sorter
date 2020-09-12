@@ -1,21 +1,20 @@
 #!/usr/bin/env python
-
 """Tests for `json_sorter` package."""
+import json
+from pathlib import Path
+
+import pytest
+
+from json_sorter.core import sort_json
 
 
-import unittest
+def test_sort_json():
+    test_data = Path.resolve(Path('./tests/data/settings.json'))
+    fixed = sort_json(test_data)
+    reloaded = json.loads(fixed)
+    keys = list(reloaded.keys())
+    assert keys[0] < keys[1]
 
-from json_sorter import json_sorter
 
-
-class TestJson_sorter(unittest.TestCase):
-    """Tests for `json_sorter` package."""
-
-    def setUp(self):
-        """Set up test fixtures, if any."""
-
-    def tearDown(self):
-        """Tear down test fixtures, if any."""
-
-    def test_000_something(self):
-        """Test something."""
+if __name__ == "__main__":
+    pytest.main()
