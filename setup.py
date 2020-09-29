@@ -6,7 +6,7 @@ with open('README.rst') as readme_file:
     readme = readme_file.read()
 
 requirements = [
-    "pyyaml",
+    "PyYaml>=*",
     "jinja2",
 ]
 
@@ -43,7 +43,7 @@ setup(
     include_package_data=True,
     keywords='json_sorter',
     name='json_sorter',
-    packages=find_packages(include=['json_sorter', 'json_sorter.*']),
+    packages=find_packages("json_sorter"),
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
