@@ -5,25 +5,17 @@ import argparse
 import csv
 import json
 import logging
-import os
 import sys
+import tkinter as tk
 from pathlib import Path
+from tkinter import filedialog
+# from tkinter import messagebox
 
-import yaml
-
-from pyutil.__about__ import __version__
-
-LOGGER = logging.Logger(name=__name__)
+from . import __version__
 
 
 def _parse_arguments():
     """Parse arguments given by the user.
-
-    This implementation still, somehow isn't done. An option for *inplace*
-    modifications needs to be added.
-
-    Unfortunately this will be mutually exclusive to the output file option.
-    So we'll need to work on learning argparse.mutually_exclusive_groups.
 
     Returns
     -------
@@ -37,8 +29,7 @@ def _parse_arguments():
     )
 
     parser.add_argument(
-        "input",
-        help="JSON file to parse.",
+        "input", help="JSON file to parse.",
     )
 
     parser.add_argument(
@@ -63,8 +54,6 @@ def _parse_arguments():
         "-l",
         "--log",
         action="store_true",
-        dest="log",
-        default=False,
         help="Turn logging on and print to console.",
     )
 
@@ -90,10 +79,14 @@ def _parse_arguments():
     # in complexity do this and maybe even parse_args in a separate function
     if args.log_level is None:
         # no LOG_LEVEL specified but -l was specified
-        if hasattr(args, 'log'):
+        if hasattr(args, "log"):
             LOG_LEVEL = "WARNING"
+        else:
+            # Don't log
+            LOG_LEVEL = 99
     else:
         LOG_LEVEL = args.log_level
+    LOGGER = logging.Logger(name=__name__)
     LOGGER.setLevel(level=LOG_LEVEL)
 
     return args
@@ -115,7 +108,9 @@ def convert_to_yaml(file_obj):
     """
     converted_json_data = sort_json(file_obj)
     # output yaml
-    yaml_text = yaml.dump(yaml.load(converted_json_data), default_flow_style=False)
+    import yaml
+    yaml_text = yaml.dump(yaml.load(converted_json_data),
+                          default_flow_style=False)
     return yaml_text
 
 
@@ -189,6 +184,46 @@ def text_writer(plaintext, output_file=sys.stdout):
     logging.info("File written is: " + str(output_file))
 
 
+def getJSON(file_to_open):
+    import_file_path = filedialog.askopenfilename()
+    return import_file_path
+
+
+def save_sorted_json(text):
+    export_file_path = filedialog.asksaveasfilename(defaultextension=".json")
+    with open(export_file_path, "wt") as f:
+        f.write(sort_json(text))
+
+
+def gui_main():
+    root = tk.Tk()
+    canvas1 = tk.Canvas(root, width=300, height=300, bg="lightsteelblue")
+    canvas1.pack()
+
+    label1 = tk.Label(root, text="File conversion tool")
+    label1.config(font=("helvetica", 20))
+    canvas1.create_window(150, 60, window=label1)
+
+    browseButton_JSON = tk.Button(text="Select JSON file.", command=getJSON)
+    canvas1.create_window(150, 130, window=browseButton_JSON)
+
+    saveAsButton = tk.Button(
+        text="Save sorted JSON to...", command=save_sorted_json)
+
+    canvas1.create_window(150, 180, window=saveAsButton)
+
+    def exitApplication():
+        MsgBox = tk.messagebox.askquestion("Exit Application?")
+        if MsgBox == "yes":
+            root.destroy()
+
+    exitButton = tk.Button(
+        root, text="Exit application, command=exitApplication")
+    canvas1.create_window(150, 230, window=exitButton)
+
+    root.mainloop()
+
+
 def main():
     """Handles user args, sets up logging and calls other functions."""
     args = _parse_arguments()
@@ -207,4 +242,6 @@ def main():
 
 
 if __name__ == "__main__":
+    # TODO: refactor GUI to new application
+    # gui_main()
     main()
