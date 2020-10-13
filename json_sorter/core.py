@@ -5,13 +5,20 @@ import argparse
 import csv
 import json
 import logging
+import os
 import sys
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog
+from typing import Optional, IO, Union
 # from tkinter import messagebox
 
-from . import __version__
+try:
+    # If we're not installed
+    from json_sorter import __version__
+except ImportError:
+    # Then hope we're not being executed directly
+    from . import __version__
 
 
 def _parse_arguments():
@@ -41,13 +48,12 @@ def _parse_arguments():
     )
 
     # Should probably implement this and CSV as subcommands
-    # parser.add_argument(
-    #     "--yaml-file",
-    #     dest="yaml",
-    #     default=sys.stdout,
-    #     type=argparse.FileType(mode="w"),
-    #     help="YAML file to write to. Defaults to stdout.",
-    # )
+    parser.add_argument(
+        "-y",
+        "--yaml",
+        action="store_true",
+        help="Whether to sort a YAML file provided as the input.",
+    )
 
     # is there a way to have info printed with this from argparse?
     parser.add_argument(
@@ -74,21 +80,6 @@ def _parse_arguments():
         sys.exit()
 
     args = parser.parse_args()
-
-    # Handling the arguments prematurely. If this begins running away
-    # in complexity do this and maybe even parse_args in a separate function
-    if args.log_level is None:
-        # no LOG_LEVEL specified but -l was specified
-        if hasattr(args, "log"):
-            LOG_LEVEL = "WARNING"
-        else:
-            # Don't log
-            LOG_LEVEL = 99
-    else:
-        LOG_LEVEL = args.log_level
-    LOGGER = logging.Logger(name=__name__)
-    LOGGER.setLevel(level=LOG_LEVEL)
-
     return args
 
 
@@ -114,7 +105,7 @@ def convert_to_yaml(file_obj):
     return yaml_text
 
 
-def csv_to_json(file_obj):
+def csv_to_json(file_obj: Path):
     """Convert a csv file to json.
 
     Parameters
@@ -128,7 +119,7 @@ def csv_to_json(file_obj):
         JSON encoded object
 
     """
-    if not Path(f).is_file():
+    if not file_obj.is_file():
         raise FileNotFoundError
 
     with open(file_obj) as f:
@@ -136,7 +127,7 @@ def csv_to_json(file_obj):
         return json.dumps(csv_file)
 
 
-def sort_json(file_obj):
+def sort_json(file_obj: os.PathLike):
     """Read in a :mod:`json` object, sort it and write it back to a new file.
 
     By writing to a new file, the user is allowed the opportunity to inspect
@@ -144,7 +135,7 @@ def sort_json(file_obj):
 
     Parameters
     ----------
-    file_obj : str
+    file_obj : os.PathLike
         The file to read in
 
     Returns
@@ -162,26 +153,30 @@ def sort_json(file_obj):
     return json_str
 
 
-def text_writer(plaintext, output_file=sys.stdout):
+def text_writer(plaintext: str, output_file: Optional[Union[IO[str], Path]] = sys.stdout):
     """Write the previously inputted text to a file.
 
     This function could easily be utilized over the whole package though.
 
     Parameters
     ----------
-    plaintext : io.TextIOWrapper
+    plaintext : str
+        Text to write.
+    output_file : os.PathLike
+        Text file to write formatted :mod:`json` to.
         The file to read in as represented by an already open file handle.
         Needed to be done this way in case we write to sys.stdout and running
         ``open(path)`` raises an error.
         Alternatively handle the 2 situations where we get an io object and a
         Path object together in this function.
-    output_file : os.PathLike
-        Text file to write formatted :mod:`json` to.
-        It will only write to the file if the filename currently doesn't exist.
 
     """
-    output_file.write(plaintext)
-    logging.info("File written is: " + str(output_file))
+    if hasattr(output_file, "write_text"):
+        output_file.write_text(plaintext)
+        logging.info("File written is: ", str(output_file))
+    elif hasattr(output_file, "write"):
+        output_file.write(plaintext)
+        logging.info("File written is: ", output_file.name)
 
 
 def getJSON(file_to_open):
@@ -224,18 +219,28 @@ def gui_main():
     root.mainloop()
 
 
-def main():
+def main(args=None):
     """Handles user args, sets up logging and calls other functions."""
-    args = _parse_arguments()
+    if args is None:
+        args = _parse_arguments()
 
-    # TODO:
-    # try:
-    #     yaml = args.yaml
-    # except AttributeError:
-    #     plaintext = sort_json(fobj)
-    # else:
-    #     plaintext = convert_to_yaml(yaml)
-    plaintext = sort_json(args.input)
+    # Handling the arguments prematurely. If this begins running away
+    # in complexity do this and maybe even parse_args in a separate function
+    if args.log_level is None:
+        # no LOG_LEVEL specified but -l was specified
+        if args.log is True:
+            LOG_LEVEL = 30
+        else:
+            # Don't log
+            LOG_LEVEL = 99
+    else:
+        LOG_LEVEL = args.log_level
+
+    logging.basicConfig(level=LOG_LEVEL)
+    if args.yaml is True:
+        plaintext = convert_to_yaml(args.yaml)
+    else:
+        plaintext = sort_json(args.input)
 
     logging.debug("Plaintext is: " + str(plaintext))
     text_writer(plaintext, args.output)

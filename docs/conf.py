@@ -40,7 +40,6 @@ extensions = [
     "sphinx.ext.extlinks",
     "sphinx.ext.githubpages",
     "sphinx.ext.intersphinx",
-    "sphinx.ext.linkcode",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
 ]
